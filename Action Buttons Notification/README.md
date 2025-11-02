@@ -39,9 +39,9 @@ You can add a maximum of three action buttons to a notification
   ```
   here scr is a folder within my project directory that contains the java class `action1` that I have written.
 
-## 7. Edit Android Manifest Template
+## 7. Adding Broadcast Receiver
   We need to register our broadcast receiver in our android manifest.
-
+ ### option 1: Edit  Manifest Template
   Inside your project directory you will find a `.buildozer` folder. Within this folder navigate to this path `.buildozer/android/platform/python-for-android/pythonforandroid/bootstraps/sdl2/build/templates`.
 
   There you will find an android manifest template file.
@@ -60,6 +60,43 @@ You can add a maximum of three action buttons to a notification
    {% endfor %}
   ```
 
+ ### option 2: Use python-for-android hook
+ You can also use a p4a hook to automatically add the receiver after the `AndroidManifest.xml` is generate each time.  
+ In `buildozer.spec`, add:
+ ```
+# (str) Filename to the hook for p4a
+p4a.hook = p4a/hook.py
+ ```
+Lastly Create `p4a/hook.py` in your project directory and insert:
+```py
+from pathlib import Path
+from pythonforandroid.toolchain import ToolchainCL
+
+def after_apk_build(toolchain: ToolchainCL):
+    manifest_file = Path(toolchain._dist.dist_dir) / "src" / "main" / "AndroidManifest.xml"
+    old_manifest = manifest_file.read_text(encoding="utf-8")
+
+    # Your custom receiver XML
+    receiver_xml = '''
+    <receiver android:name="org.org.appname.Action1"
+              android:enabled="true"
+              android:exported="false">
+        <intent-filter>
+            <action android:name="android.intent.action.BOOT_COMPLETED" />
+        </intent-filter>
+    </receiver>
+    '''
+
+    # Insert before the closing </application>
+    new_manifest = old_manifest.replace('</application>', f'{receiver_xml}\n</application>')
+
+    manifest_file.write_text(new_manifest, encoding="utf-8")
+
+    if old_manifest != new_manifest:
+        print("Receiver added successfully")
+    else:
+        print("Failed to add receiver")
+```
 
 ## 8. Build
   Create a copy of the edited manifest in some other directory.
